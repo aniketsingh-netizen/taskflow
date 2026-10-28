@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: daylight-planner
+    runtime: python
+    plan: starter
+    buildCommand: python -c "import sys; assert sys.version_info >= (3, 10), 'Python 3.10 or later is required'"
+    startCommand: python server.py
+    healthCheckPath: /api/health
+    disk:
+      name: daylight-planner-data
+      mountPath: /var/data/daylight
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.4
+      - key: DAYLIGHT_DATA_DIR
+        value: /var/data/daylight
