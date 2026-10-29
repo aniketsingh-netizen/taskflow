@@ -3,6 +3,7 @@
 (() => {
   const STORAGE_KEY = "daylight.tasks.v1";
   const REMINDER_STATE_KEY = "daylight.reminders.v1";
+  const USER_NAME_KEY = "daylight.name.v1";
   const USER_ID_KEY = "daylight.user.v1";
   const THEME_KEY = "daylight.theme.v1";
   const PENDING_SYNC_KEY = "daylight.pending-sync.v1";
@@ -13,6 +14,8 @@
     selectedDate: toDateKey(new Date()),
     currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     userId: loadUserId(),
+    userName: loadUserName(),
+    profileReady: false,
     theme: loadTheme(),
     syncQueue: Promise.resolve(),
     view: "day",
@@ -30,6 +33,61 @@
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  }
+
+  function openProfileDialog() {
+    if (!state.profileReady || !state.userName) return;
+    el("profile-name-input").value = state.userName;
+    configureProfileDialog(false, false);
+    el("profile-dialog").showModal();
+    el("profile-name-input").focus();
+  }
+
+  function configureProfileDialog(isFirstVisit, isLoading) {
+    el("profile-dialog-eyebrow").textContent = isLoading ? "CONNECTING YOUR PLANNER" : isFirstVisit ? "MAKE THIS SPACE YOURS" : "YOUR PERSONAL PROFILE";
+    el("profile-dialog-title").textContent = isLoading ? "Loading your planner…" : isFirstVisit ? "What should we call you?" : "Update your name";
+    el("profile-dialog-note").textContent = isLoading ? "Checking for your saved profile name…" : "Your name is used only for your personal greeting and profile initials.";
+    el("profile-name-input").disabled = isLoading;
+    el("profile-form").querySelector('[type="submit"]').disabled = isLoading;
+    el("profile-dialog").querySelectorAll(".profile-dialog-cancel, .profile-dialog-close").forEach((button) => {
+      button.hidden = isFirstVisit;
+    });
+  }
+
+  function showFirstVisitNamePrompt(isLoading) {
+    configureProfileDialog(true, isLoading);
+    if (!el("profile-dialog").open) el("profile-dialog").showModal();
+    if (!isLoading) el("profile-name-input").focus();
+  }
+
+  function finishProfileInitialization() {
+    state.profileReady = true;
+    if (state.userName) {
+      if (el("profile-dialog").open) el("profile-dialog").close();
+    } else {
+      showFirstVisitNamePrompt(false);
+    }
+    render();
+  }
+
+  function saveProfile(event) {
+    event.preventDefault();
+    const previousName = state.userName;
+    state.userName = el("profile-name-input").value.trim().replace(/\s+/g, " ").slice(0, 48);
+    if (!state.userName) {
+      state.userName = previousName;
+      el("profile-name-input").setCustomValidity("Please enter your name.");
+      el("profile-name-input").reportValidity();
+      return;
+    }
+    el("profile-name-input").setCustomValidity("");
+    if (!save()) {
+      state.userName = previousName;
+      return;
+    }
+    el("profile-dialog").close();
+    render();
+    showToast("Your name has been saved.");
   }
 
   function fromDateKey(key) {
@@ -103,8 +161,17 @@
     }
   }
 
+  function loadUserName() {
+    try {
+      return (localStorage.getItem(USER_NAME_KEY) || "").trim().slice(0, 48);
+    } catch (error) {
+      console.error("Could not load the saved planner name.", error);
+      return "";
+    }
+  }
+
   function currentDocument() {
-    return { tasks: state.tasks, reminderState: state.reminderState, theme: state.theme };
+    return { tasks: state.tasks, reminderState: state.reminderState, theme: state.theme, name: state.userName };
   }
 
   function saveLocalDocument(pendingSync) {
@@ -112,6 +179,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tasks));
       localStorage.setItem(REMINDER_STATE_KEY, JSON.stringify(state.reminderState));
       localStorage.setItem(THEME_KEY, state.theme);
+      localStorage.setItem(USER_NAME_KEY, state.userName);
       if (pendingSync !== null) localStorage.setItem(PENDING_SYNC_KEY, pendingSync ? "1" : "0");
       return true;
     } catch (error) {
@@ -198,7 +266,7 @@
   async function initializeDatabase() {
     if (!state.userId) {
       setStorageStatus("Saved on this device", "local");
-      render();
+      finishProfileInitialization();
       return;
     }
     setStorageStatus("Connecting to database…", "syncing");
@@ -207,25 +275,28 @@
       if (!response.ok) throw new Error(`Planner database returned HTTP ${response.status}.`);
       const remote = await response.json();
       const hasPendingChanges = localStorage.getItem(PENDING_SYNC_KEY) === "1";
-      if (hasPendingChanges) {
-        await queueDatabaseSync();
-      } else if (remote.exists) {
-        state.tasks = remote.tasks;
-        state.reminderState = remote.reminderState;
-        state.theme = themes.has(remote.theme) ? remote.theme : "fern";
-        saveLocalDocument(false);
+      if (remote.exists) {
+        if (!hasPendingChanges) {
+          state.tasks = remote.tasks;
+          state.reminderState = remote.reminderState;
+          state.theme = themes.has(remote.theme) ? remote.theme : "fern";
+        }
+        if (!state.userName) state.userName = typeof remote.name === "string" ? remote.name.trim().slice(0, 48) : "";
+        saveLocalDocument(null);
         applyTheme(state.theme);
-        setStorageStatus("Saved to database", "saved");
-      } else if (state.tasks.length || Object.keys(state.reminderState).length || state.theme !== "fern") {
+        if (hasPendingChanges) await queueDatabaseSync();
+        else setStorageStatus("Saved to database", "saved");
+      } else if (state.tasks.length || Object.keys(state.reminderState).length || state.theme !== "fern" || state.userName) {
         await queueDatabaseSync();
       } else {
         setStorageStatus("Database connected", "saved");
       }
+      finishProfileInitialization();
     } catch (error) {
       console.error("Could not load planner data from the database.", error);
       setStorageStatus("Saved on this device", "local");
+      finishProfileInitialization();
     }
-    render();
   }
 
   function formatDate(key, options = { weekday: "long", month: "long", day: "numeric" }) {
@@ -266,7 +337,13 @@
     if (state.view === "completed") return "Completed tasks";
     if (state.view === "upcoming") return "Coming up";
     if (state.view === "week") return "Your week";
-    if (state.selectedDate === toDateKey(new Date())) return "Good morning, Aniket";
+    if (state.selectedDate === toDateKey(new Date())) {
+      const hour = new Date().getHours();
+      const greeting = hour >= 5 && hour < 12 ? "Good morning"
+        : hour >= 12 && hour < 17 ? "Good afternoon"
+          : hour >= 17 && hour < 21 ? "Good evening" : "Good night";
+      return state.userName ? `${greeting}, ${state.userName}` : `${greeting} — welcome back`;
+    }
     return formatDate(state.selectedDate, { weekday: "long" });
   }
 
@@ -290,6 +367,9 @@
     el("topbar-view-label").textContent = label;
     el("topbar-date").textContent = formatDate(toDateKey(new Date()), { weekday: "short", month: "short", day: "numeric" });
     el("page-title").textContent = titleForView();
+    el("profile-display-name").textContent = state.userName || "Your name";
+    el("profile-avatar").textContent = state.userName ? Array.from(state.userName)[0].toLocaleUpperCase() : "Y";
+    el("profile-button").setAttribute("aria-label", state.userName ? `Edit your name, ${state.userName}` : "Set your name");
     el("heading-eyebrow").textContent = state.category ? "A LITTLE SPACE FOR WHAT MATTERS" : state.view === "week" ? "THE DAYS AHEAD, AT A GLANCE" : state.view === "completed" ? "LOOK HOW FAR YOU’VE COME" : state.view === "upcoming" ? "GOOD THINGS ON THE HORIZON" : "YOUR DAY, AT A GLANCE";
     el("page-subtitle").textContent = state.category ? `A little room for your ${state.category.toLowerCase()} priorities.` : state.view === "completed" ? "All the things you’ve already taken care of." : state.view === "upcoming" ? "Your next steps, ready when you are." : state.view === "week" ? "A gentle look at the next seven days." : isToday ? "A fresh page, and plenty of room to make it yours." : "One day at a time. Make this one count.";
     el("task-section-title").textContent = state.category ? `${state.category} tasks` : state.view === "completed" ? "Done and dusted" : state.view === "upcoming" ? "Coming up next" : state.view === "week" ? "This week" : state.selectedDate === toDateKey(new Date()) ? "Today’s tasks" : formatDate(state.selectedDate, { month: "long", day: "numeric" });
@@ -945,6 +1025,12 @@
   el("dialog-cancel").addEventListener("click", () => dialog.close());
   el("dialog-close").addEventListener("click", () => dialog.close());
   el("plan-day-button").addEventListener("click", planMyDay);
+  el("profile-button").addEventListener("click", openProfileDialog);
+  el("profile-form").addEventListener("submit", saveProfile);
+  document.querySelectorAll(".profile-dialog-cancel, .profile-dialog-close").forEach((button) => button.addEventListener("click", () => el("profile-dialog").close()));
+  el("profile-dialog").addEventListener("cancel", (event) => {
+    if (!state.profileReady || !state.userName) event.preventDefault();
+  });
   el("theme-select").addEventListener("change", (event) => changeTheme(event.target.value));
   el("notification-button").addEventListener("click", enableNotifications);
   el("sort-button").addEventListener("click", () => {
@@ -970,6 +1056,9 @@
   });
   window.setInterval(checkReminders, 15_000);
   window.setInterval(() => {
+    if (state.selectedDate === toDateKey(new Date())) el("page-title").textContent = titleForView();
+  }, 60_000);
+  window.setInterval(() => {
     try {
       if (navigator.onLine && state.userId && localStorage.getItem(PENDING_SYNC_KEY) === "1") queueDatabaseSync();
     } catch (error) {
@@ -980,5 +1069,6 @@
   window.addEventListener("online", queueDatabaseSync);
   applyTheme(state.theme);
   render();
+  if (!state.userName) showFirstVisitNamePrompt(true);
   initializeDatabase();
 })();

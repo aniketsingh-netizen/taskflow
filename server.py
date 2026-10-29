@@ -8,9 +8,11 @@ import os
 import re
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import date, datetime, time, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Iterator
 from urllib.parse import urlsplit
 
 
@@ -25,10 +27,15 @@ PRIORITIES = {"high", "medium", "low"}
 PUBLIC_FILES = {"/", "/index.html", "/app.js", "/styles.css"}
 
 
-def connect_database() -> sqlite3.Connection:
+@contextmanager
+def connect_database() -> Iterator[sqlite3.Connection]:
     connection = sqlite3.connect(DATABASE_PATH, timeout=10)
     connection.row_factory = sqlite3.Row
-    return connection
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def initialize_database() -> None:
@@ -42,13 +49,17 @@ def initialize_database() -> None:
                 tasks_json TEXT NOT NULL,
                 reminder_state_json TEXT NOT NULL,
                 theme TEXT NOT NULL DEFAULT 'fern',
+                profile_name TEXT NOT NULL DEFAULT '',
                 updated_at TEXT NOT NULL
             )
             """
         )
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(planner_data)")}
+        if "profile_name" not in columns:
+            connection.execute("ALTER TABLE planner_data ADD COLUMN profile_name TEXT NOT NULL DEFAULT ''")
 
 
-def validate_document(document: object) -> tuple[list[dict], dict[str, str], str]:
+def validate_document(document: object) -> tuple[list[dict], dict[str, str], str, str]:
     if not isinstance(document, dict):
         raise ValueError("The request must be a JSON object.")
 
@@ -110,7 +121,11 @@ def validate_document(document: object) -> tuple[list[dict], dict[str, str], str
     if not isinstance(theme, str) or theme not in THEMES:
         raise ValueError("Theme must be fern, ocean, lavender, or sunset.")
 
-    return tasks, reminder_state, theme
+    profile_name = document.get("name", "")
+    if not isinstance(profile_name, str) or len(profile_name.strip()) > 48:
+        raise ValueError("Planner name must be 48 characters or fewer.")
+
+    return tasks, reminder_state, theme, profile_name.strip()
 
 
 class DaylightHandler(SimpleHTTPRequestHandler):
@@ -179,12 +194,12 @@ class DaylightHandler(SimpleHTTPRequestHandler):
             return
         with connect_database() as connection:
             row = connection.execute(
-                "SELECT tasks_json, reminder_state_json, theme, updated_at "
+                "SELECT tasks_json, reminder_state_json, theme, profile_name, updated_at "
                 "FROM planner_data WHERE user_id = ?",
                 (user_id,),
             ).fetchone()
         if row is None:
-            self._send_json(200, {"exists": False, "tasks": [], "reminderState": {}, "theme": "fern"})
+            self._send_json(200, {"exists": False, "tasks": [], "reminderState": {}, "theme": "fern", "name": ""})
             return
         self._send_json(
             200,
@@ -193,6 +208,7 @@ class DaylightHandler(SimpleHTTPRequestHandler):
                 "tasks": json.loads(row["tasks_json"]),
                 "reminderState": json.loads(row["reminder_state_json"]),
                 "theme": row["theme"],
+                "name": row["profile_name"],
                 "updatedAt": row["updated_at"],
             },
         )
@@ -208,17 +224,18 @@ class DaylightHandler(SimpleHTTPRequestHandler):
         document = self._read_document()
         if document is None:
             return
-        tasks, reminder_state, theme = validate_document(document)
+        tasks, reminder_state, theme, profile_name = validate_document(document)
         updated_at = datetime.now(timezone.utc).isoformat()
         with connect_database() as connection:
             connection.execute(
                 """
-                INSERT INTO planner_data (user_id, tasks_json, reminder_state_json, theme, updated_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO planner_data (user_id, tasks_json, reminder_state_json, theme, profile_name, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                     tasks_json = excluded.tasks_json,
                     reminder_state_json = excluded.reminder_state_json,
                     theme = excluded.theme,
+                    profile_name = excluded.profile_name,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -226,6 +243,7 @@ class DaylightHandler(SimpleHTTPRequestHandler):
                     json.dumps(tasks, separators=(",", ":"), ensure_ascii=False),
                     json.dumps(reminder_state, separators=(",", ":"), ensure_ascii=False),
                     theme,
+                    profile_name,
                     updated_at,
                 ),
             )

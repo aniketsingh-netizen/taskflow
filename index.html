@@ -67,8 +67,8 @@
             <span class="privacy-icon" aria-hidden="true">✦</span>
             <div><strong>A little more focus</strong><p>Your plan stays in your planner’s private space.</p></div>
           </div>
-          <button class="profile-button" type="button" aria-label="Personal planner profile">
-            <span class="avatar">A</span><span class="profile-copy"><strong>Your planner</strong><small>Personal space</small></span><span class="profile-more">···</span>
+          <button class="profile-button" id="profile-button" type="button" aria-label="Edit your name">
+            <span class="avatar" id="profile-avatar">Y</span><span class="profile-copy"><strong id="profile-display-name">Your name</strong><small>Personal space</small></span><span class="profile-more">···</span>
           </button>
         </div>
       </aside>
@@ -110,7 +110,7 @@
             <div class="page-heading">
               <div>
                 <p class="eyebrow" id="heading-eyebrow">YOUR DAY, AT A GLANCE</p>
-                <h1 id="page-title">Good morning, Aniket <span class="sun-emoji" aria-hidden="true">☀</span></h1>
+                <h1 id="page-title">Your day, thoughtfully planned</h1>
                 <p class="heading-subtitle" id="page-subtitle">A fresh page, and plenty of room to make it yours.</p>
               </div>
               <div class="day-progress" aria-label="Daily progress">
@@ -181,6 +181,16 @@
         </div>
         <p class="dialog-reminder-note">Reminders are checked while this page is open. Browser notifications can be enabled from the bell, when you’re ready.</p>
         <div class="dialog-actions"><button class="button button-quiet" id="dialog-cancel" type="button">Cancel</button><button class="button button-primary" id="save-task-button" type="submit">Save task</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="task-dialog profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
+      <form class="task-form" id="profile-form">
+        <div class="dialog-heading"><div><p class="eyebrow" id="profile-dialog-eyebrow">MAKE THIS SPACE YOURS</p><h2 id="profile-dialog-title">What should we call you?</h2></div><button class="icon-button profile-dialog-close" type="button" aria-label="Close dialog">×</button></div>
+        <label class="field-label" for="profile-name-input">Your name</label>
+        <input class="form-input" id="profile-name-input" name="name" type="text" maxlength="48" autocomplete="given-name" placeholder="Enter your name" required>
+        <p class="dialog-reminder-note" id="profile-dialog-note">Your name is used only for your personal greeting and profile initials.</p>
+        <div class="dialog-actions"><button class="button button-quiet profile-dialog-cancel" type="button">Cancel</button><button class="button button-primary" type="submit">Save name</button></div>
       </form>
     </dialog>
 

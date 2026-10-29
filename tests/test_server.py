@@ -1,5 +1,6 @@
 import json
 import os
+import sqlite3
 import socket
 import subprocess
 import sys
@@ -14,6 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER = ROOT / "server.py"
+sys.path.insert(0, str(ROOT))
+import server as daylight_server
 
 
 class PlannerServerTests(unittest.TestCase):
@@ -102,6 +105,7 @@ class PlannerServerTests(unittest.TestCase):
             }],
             "reminderState": {"coffee-with-maya": "2026-11-03T10:00"},
             "theme": "lavender",
+            "name": "Aniket",
         }
         status, saved = self.request_document(user_id, method="PUT", document=document)
         self.assertEqual(status, 200)
@@ -116,6 +120,7 @@ class PlannerServerTests(unittest.TestCase):
         self.assertEqual(restored["tasks"], document["tasks"])
         self.assertEqual(restored["reminderState"], document["reminderState"])
         self.assertEqual(restored["theme"], "lavender")
+        self.assertEqual(restored["name"], "Aniket")
 
     def test_planner_data_is_isolated_by_random_browser_identity(self):
         owner_id = uuid.uuid4()
@@ -123,15 +128,57 @@ class PlannerServerTests(unittest.TestCase):
         self.request_document(
             owner_id,
             method="PUT",
-            document={"tasks": [], "reminderState": {}, "theme": "ocean"},
+            document={"tasks": [], "reminderState": {}, "theme": "ocean", "name": "Sam"},
         )
 
         _, owner = self.request_document(owner_id)
         _, other = self.request_document(other_id)
 
         self.assertEqual(owner["theme"], "ocean")
+        self.assertEqual(owner["name"], "Sam")
         self.assertFalse(other["exists"])
         self.assertEqual(other["tasks"], [])
+        self.assertEqual(other["name"], "")
+
+    def test_existing_database_migrates_profile_name_column(self):
+        migration_directory = Path(self.temp_directory.name) / "legacy-database"
+        database_path = migration_directory / "daylight.sqlite3"
+        original_data_dir = daylight_server.DATA_DIR
+        original_database_path = daylight_server.DATABASE_PATH
+        try:
+            migration_directory.mkdir()
+            connection = sqlite3.connect(database_path)
+            connection.execute(
+                """
+                CREATE TABLE planner_data (
+                    user_id TEXT PRIMARY KEY,
+                    tasks_json TEXT NOT NULL,
+                    reminder_state_json TEXT NOT NULL,
+                    theme TEXT NOT NULL DEFAULT 'fern',
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                "INSERT INTO planner_data (user_id, tasks_json, reminder_state_json, updated_at) VALUES (?, '[]', '{}', 'test')",
+                (str(uuid.uuid4()),),
+            )
+            connection.commit()
+            connection.close()
+
+            daylight_server.DATA_DIR = migration_directory
+            daylight_server.DATABASE_PATH = database_path
+            daylight_server.initialize_database()
+
+            connection = sqlite3.connect(database_path)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(planner_data)")}
+            profiles = connection.execute("SELECT COUNT(*) FROM planner_data").fetchone()[0]
+            connection.close()
+            self.assertIn("profile_name", columns)
+            self.assertEqual(profiles, 1)
+        finally:
+            daylight_server.DATA_DIR = original_data_dir
+            daylight_server.DATABASE_PATH = original_database_path
 
     def test_database_and_private_repository_files_are_not_public(self):
         for path in ("/data/daylight.sqlite3", "/server.py", "/README.md"):
