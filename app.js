@@ -370,6 +370,9 @@
     el("profile-display-name").textContent = state.userName || "Your name";
     el("profile-avatar").textContent = state.userName ? Array.from(state.userName)[0].toLocaleUpperCase() : "Y";
     el("profile-button").setAttribute("aria-label", state.userName ? `Edit your name, ${state.userName}` : "Set your name");
+    el("header-profile-name").textContent = state.userName || "Your name";
+    el("header-avatar").textContent = state.userName ? Array.from(state.userName)[0].toLocaleUpperCase() : "Y";
+    el("header-profile-button").setAttribute("aria-label", state.userName ? `Change your name, ${state.userName}` : "Set your name");
     el("heading-eyebrow").textContent = state.category ? "A LITTLE SPACE FOR WHAT MATTERS" : state.view === "week" ? "THE DAYS AHEAD, AT A GLANCE" : state.view === "completed" ? "LOOK HOW FAR YOU’VE COME" : state.view === "upcoming" ? "GOOD THINGS ON THE HORIZON" : "YOUR DAY, AT A GLANCE";
     el("page-subtitle").textContent = state.category ? `A little room for your ${state.category.toLowerCase()} priorities.` : state.view === "completed" ? "All the things you’ve already taken care of." : state.view === "upcoming" ? "Your next steps, ready when you are." : state.view === "week" ? "A gentle look at the next seven days." : isToday ? "A fresh page, and plenty of room to make it yours." : "One day at a time. Make this one count.";
     el("task-section-title").textContent = state.category ? `${state.category} tasks` : state.view === "completed" ? "Done and dusted" : state.view === "upcoming" ? "Coming up next" : state.view === "week" ? "This week" : state.selectedDate === toDateKey(new Date()) ? "Today’s tasks" : formatDate(state.selectedDate, { month: "long", day: "numeric" });
@@ -1026,6 +1029,7 @@
   el("dialog-close").addEventListener("click", () => dialog.close());
   el("plan-day-button").addEventListener("click", planMyDay);
   el("profile-button").addEventListener("click", openProfileDialog);
+  el("header-profile-button").addEventListener("click", openProfileDialog);
   el("profile-form").addEventListener("submit", saveProfile);
   document.querySelectorAll(".profile-dialog-cancel, .profile-dialog-close").forEach((button) => button.addEventListener("click", () => el("profile-dialog").close()));
   el("profile-dialog").addEventListener("cancel", (event) => {

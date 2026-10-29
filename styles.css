@@ -93,6 +93,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .breadcrumb-slash { color: #d3d6d3; }
 .topbar-actions { display: flex; align-items: center; gap: 16px; }
 .date-stamp { color: #777f7a; font-size: 10px; }
+.header-profile-button { display: inline-flex; align-items: center; gap: 6px; max-width: 140px; min-height: 31px; padding: 3px 7px 3px 3px; border: 1px solid #eceeeb; border-radius: 18px; background: #fff; cursor: pointer; }
+.header-profile-button:hover { border-color: var(--accent-line); background: var(--accent-pale); }
+.header-avatar { display: grid; place-items: center; flex: 0 0 23px; width: 23px; height: 23px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font: 700 10px var(--font-display); }
+.header-profile-name { overflow: hidden; color: #5d6860; font-size: 9px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .theme-select { max-width: 90px; height: 30px; padding: 0 7px; border: 1px solid #eceeeb; border-radius: 6px; background: #fff; color: #68716c; font-size: 9px; cursor: pointer; }
 .theme-select:hover { border-color: var(--accent-line); }
 .storage-status { color: #929a94; font-size: 8px; white-space: nowrap; }
@@ -270,7 +274,7 @@ h1 { margin-bottom: 7px; font: 700 clamp(23px,2.4vw,30px)/1.2 var(--font-display
   .nav-link { display: grid; justify-items: center; gap: 2px; width: 56px; height: 48px; padding: 5px 0; }
   .nav-link span { display: block; font-size: 7px; }.nav-link .nav-count { display: none; }.nav-link svg { width: 17px; height: 17px; }
   .main-content { padding-bottom: 0; }
-  .topbar { height: 52px; padding: 0 16px; }.breadcrumb { font-size: 9px; }.date-stamp { font-size: 8px; }.topbar-actions { gap: 8px; }.storage-status { display: none; }.theme-select { max-width: 75px; height: 27px; padding: 0 4px; font-size: 8px; }
+  .topbar { height: 52px; padding: 0 16px; }.breadcrumb { font-size: 9px; }.date-stamp { font-size: 8px; }.topbar-actions { gap: 6px; }.storage-status { display: none; }.theme-select { max-width: 75px; height: 27px; padding: 0 4px; font-size: 8px; }.header-profile-button { max-width: 90px; min-height: 28px; padding-right: 5px; }.header-avatar { flex-basis: 21px; width: 21px; height: 21px; }.header-profile-name { font-size: 8px; }
   .content-layout { display: block; padding: 16px 15px 25px; }
   .insights-column { display: grid; grid-template-columns: 1fr; gap: 11px; margin-top: 20px; }
   .page-heading { align-items: flex-start; padding: 23px 0 18px; }
