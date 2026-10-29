@@ -27,7 +27,7 @@ The app also works from a static file host, but that mode only saves data in the
 ## Use the planner
 
 - Add tasks from the quick-capture box or **New task**. Edit, complete, and delete tasks from their task cards.
-- Select the profile at the bottom of the sidebar to save your name. Daylight uses it in your greeting and changes between morning, afternoon, evening, and night based on your local time.
+- Select your name in the header or sidebar profile to change it. Daylight uses it only in your greeting and profile initials, and changes its greeting between morning, afternoon, evening, and night based on your local time.
 - On the first visit, enter your name to start your personal planner. Your name is used only in the greeting and your profile initials.
 - Quick capture understands common dates (today, tomorrow, and weekdays), times, durations, priority words, and category hashtags. For example: `Send the project update tomorrow at 10am for 30 minutes #work`.
 - Switch between day and week views, choose dates from the calendar, or filter by category, upcoming tasks, and completed tasks.
