@@ -27,6 +27,8 @@ The app also works from a static file host, but that mode only saves data in the
 ## Use the planner
 
 - Add tasks from the quick-capture box or **New task**. Edit, complete, and delete tasks from their task cards.
+- Select the profile at the bottom of the sidebar to save your name. Daylight uses it in your greeting and changes between morning, afternoon, evening, and night based on your local time.
+- On the first visit, enter your name to start your personal planner. Your name is used only in the greeting and your profile initials.
 - Quick capture understands common dates (today, tomorrow, and weekdays), times, durations, priority words, and category hashtags. For example: `Send the project update tomorrow at 10am for 30 minutes #work`.
 - Switch between day and week views, choose dates from the calendar, or filter by category, upcoming tasks, and completed tasks.
 - Choose **Plan my day** for locally generated priority and time suggestions. Apply a suggestion to add its time to a task. This lightweight planner uses your task details and does not send data to an AI service.
@@ -36,7 +38,7 @@ The app also works from a static file host, but that mode only saves data in the
 
 ## Data and reminders
 
-With the Python server, tasks, reminders, and theme are synchronized to a SQLite database and cached in the browser. Each browser profile gets its own random planner identity; no email or password is collected. The random identity acts like an unlisted access key to that planner: it is stored in the browser, so protect access to your device and deploy Daylight behind HTTPS. Anyone who obtains that key can access that planner. The same browser profile restores its data on later visits, including after app deployments, provided the SQLite database remains on persistent storage. Clearing that browser's site data loses the identity key, so the existing profile cannot be recovered. This lightweight app does not provide account recovery or cross-device sign-in.
+With the Python server, tasks, reminders, name, and theme are synchronized to a SQLite database and cached in the browser. Each browser profile gets its own random planner identity; no email or password is collected. The random identity acts like an unlisted access key to that planner: it is stored in the browser, so protect access to your device and deploy Daylight behind HTTPS. Anyone who obtains that key can access that planner. The same browser profile restores its data on later visits, including after app deployments, provided the SQLite database remains on persistent storage. Clearing that browser's site data loses the identity key, so the existing profile cannot be recovered. This lightweight app does not provide account recovery or cross-device sign-in.
 
 **Deployment persistence matters:** SQLite stores data in `DAYLIGHT_DATA_DIR` (by default, the repository's `data` directory). For a hosting provider that replaces or resets its filesystem on deployment, attach a persistent disk/volume and set `DAYLIGHT_DATA_DIR` to a directory on that volume. A normal ephemeral container filesystem cannot preserve a database across redeploys. The server serves both the app and its `/api` endpoints, so deploy it as a Python web service rather than as static files only.
 
